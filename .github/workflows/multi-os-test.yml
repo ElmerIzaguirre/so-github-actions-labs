@@ -1,0 +1,46 @@
+name: Multi-OS System Check
+on: [push, workflow_dispatch]
+
+jobs:
+  system-info:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Collect System Info - Linux / macOS
+        if: runner.os != 'Windows'
+        run: |
+          echo "=== Sistema Operativo ===" > system-info.txt
+          uname -a >> system-info.txt
+          echo "=== Arquitectura ===" >> system-info.txt
+          uname -m >> system-info.txt
+          echo "=== Variables de Entorno ===" >> system-info.txt
+          env >> system-info.txt
+
+      - name: Collect System Info - Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          "=== Sistema Operativo ===" | Out-File -FilePath system-info.txt -Encoding utf8
+          Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version | Out-String >> system-info.txt
+          "=== Arquitectura ===" >> system-info.txt
+          (Get-CimInstance Win32_ComputerSystem).SystemType >> system-info.txt
+          "=== Variables de Entorno ===" >> system-info.txt
+          Get-ChildItem Env: | Out-String >> system-info.txt
+
+      - name: Show file (for debug)
+        run: |
+          echo "---- begin file ----"
+          cat system-info.txt || (type system-info.txt)
+          echo "---- end file ----"
+
+      - name: Upload System Info
+        uses: actions/upload-artifact@v4
+        with:
+          name: system-info-${{ matrix.os }}
+          path: system-info.txt
+
